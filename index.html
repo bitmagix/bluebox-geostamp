@@ -145,13 +145,14 @@
         }
 
         #controls {
-            padding: 20px;
+            padding: 20px 20px 40px 20px;
             background: #1e293b;
             display: flex;
             gap: 12px;
             justify-content: center;
             align-items: center;
             border-top: 1px solid rgba(255,255,255,0.06);
+            padding-bottom: max(40px, env(safe-area-inset-bottom));
         }
 
         button {
@@ -452,9 +453,25 @@
                 );
                 const data = await response.json();
                 const address = data.address;
+                
+                // Straße + Hausnummer
+                const road = address.road || '';
+                const houseNumber = address.house_number || '';
+                const street = road && houseNumber ? `${road} ${houseNumber}` : road;
+                
+                // Stadt
                 const city = address.city || address.town || address.village || address.municipality || '';
+                
+                // Land
                 const country = address.country || '';
-                return city && country ? `${city}, ${country}` : (city || country || '');
+                
+                // Formatierung
+                const parts = [];
+                if (street) parts.push(street);
+                if (city) parts.push(city);
+                if (country) parts.push(country);
+                
+                return parts.join(', ') || null;
             } catch (error) {
                 console.error('Geocoding Fehler:', error);
                 return null;
