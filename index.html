@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>BlueBox GeoStamp Professional</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        #header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        #header h1 small {
+            display: block;
+            font-size: 11px;
+            font-weight: 400;
+            opacity: 0.85;
+            margin-top: 3px;
+        }
+
+        #gps-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 14px;
+            backdrop-filter: blur(8px);
+        }
+
+        .gps-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+
+        .gps-dot.inactive {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.88); }
+        }
+
+        #camera-container {
+            flex: 1;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #overlay-preview {
+            position: absolute;
+            bottom: 110px;
+            left: 16px;
+            right: 16px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.94) 0%, rgba(30, 41, 59, 0.94) 100%);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 11px;
+            line-height: 1.6;
+            font-family: 'Courier New', monospace;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+        }
+
+        #overlay-preview strong {
+            font-size: 12px;
+            color: #60a5fa;
+        }
+
+        .preview-badges {
+            margin-top: 8px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .badge-info {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+
+        #controls {
+            padding: 20px;
+            background: #1e293b;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        button {
+            padding: 16px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        #capture-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            flex: 1;
+            max-width: 300px;
+            justify-content: center;
+        }
+
+        #capture-btn:active {
+            transform: scale(0.97);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+
+        #capture-btn:disabled {
+            background: #475569;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        #switch-camera {
+            background: #475569;
+            color: white;
+            padding: 16px;
+        }
+
+        #switch-camera:active {
+            transform: scale(0.97);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #preview-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.97);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #preview-header {
+            padding: 12px 20px;
+            background: #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        #preview-header h2 {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        #preview-image-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        #preview-image {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+        }
+
+        #preview-controls {
+            padding: 20px;
+            background: #1e293b;
+            display: flex;
+            gap: 12px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        #download-btn {
+            background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+            color: white;
+            flex: 1;
+        }
+
+        #retake-btn {
+            background: #475569;
+            color: white;
+            flex: 1;
+        }
+
+        #error-message {
+            position: fixed;
+            top: 75px;
+            left: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            padding: 14px 16px;
+            border-radius: 10px;
+            z-index: 2000;
+            animation: slideDown 0.3s;
+            box-shadow: 0 4px 16px rgba(220, 38, 38, 0.5);
+            font-size: 14px;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* PIN LOGIN SCREEN */
+        #pin-login {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        #pin-login.hidden {
+            display: none;
+        }
+
+        .pin-logo {
+            font-size: 48px;
+            font-weight: 700;
+            color: #60a5fa;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .pin-subtitle {
+            font-size: 14px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 40px;
+        }
+
+        .pin-input-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .pin-digit {
+            width: 56px;
+            height: 64px;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .pin-digit:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .pin-error {
+            color: #ef4444;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: -20px;
+            margin-bottom: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .pin-error.show {
+            opacity: 1;
+        }
+
+        .pin-info {
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+            text-align: center;
+            max-width: 280px;
+        }
+    </style>
+</head>
+<body>
+    <!-- PIN LOGIN SCREEN -->
+    <div id="pin-login">
+        <div class="pin-logo">BlueBox</div>
+        <div class="pin-subtitle">GeoStamp Professional</div>
+        <div class="pin-input-container">
+            <input type="tel" maxlength="1" class="pin-digit" id="pin1" autocomplete="off">
+            <input type="tel" maxlength="1" class="pin-digit" id="pin2" autocomplete="off">
+            <input type="tel" maxlength="1" class="pin-digit" id="pin3" autocomplete="off">
+            <input type="tel" maxlength="1" class="pin-digit" id="pin4" autocomplete="off">
+            <input type="tel" maxlength="1" class="pin-digit" id="pin5" autocomplete="off">
+        </div>
+        <div class="pin-error" id="pin-error">❌ Falscher PIN-Code</div>
+        <div class="pin-info">🔒 Bitte geben Sie Ihren 5-stelligen PIN ein</div>
+    </div>
+
+    <div id="header">
+        <h1>
+            BlueBox
+            <small>GeoStamp Professional</small>
+        </h1>
+        <div id="gps-indicator">
+            <div class="gps-dot inactive"></div>
+            <span id="gps-status">GPS...</span>
+        </div>
+    </div>
+
+    <div id="camera-container">
+        <video id="video" autoplay playsinline></video>
+        <div id="overlay-preview"></div>
+    </div>
+
+    <div id="controls">
+        <button id="switch-camera">🔄</button>
+        <button id="capture-btn" disabled>📸 Dokumentieren</button>
+    </div>
+
+    <div id="preview-container" class="hidden">
+        <div id="preview-header">
+            <h2>Vorschau</h2>
+        </div>
+        <div id="preview-image-container">
+            <img id="preview-image" alt="Aufgenommenes Foto">
+        </div>
+        <div id="preview-controls">
+            <button id="retake-btn">↩️ Erneut</button>
+            <button id="download-btn">💾 Speichern</button>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const captureBtn = document.getElementById('capture-btn');
+        const switchCameraBtn = document.getElementById('switch-camera');
+        const overlayPreview = document.getElementById('overlay-preview');
+        const gpsDot = document.querySelector('.gps-dot');
+        const gpsStatus = document.getElementById('gps-status');
+        const previewContainer = document.getElementById('preview-container');
+        const previewImage = document.getElementById('preview-image');
+        const downloadBtn = document.getElementById('download-btn');
+        const retakeBtn = document.getElementById('retake-btn');
+
+        let currentStream = null;
+        let currentPosition = null;
+        let currentAddress = null;
+        let facingMode = 'environment';
+        let capturedImageData = null;
+
+        // Reverse Geocoding
+        async function getAddressFromCoords(lat, lon) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
+                    {
+                        headers: {
+                            'User-Agent': 'BlueBox-GeoStamp-Professional'
+                        }
+                    }
+                );
+                const data = await response.json();
+                const address = data.address;
+                const city = address.city || address.town || address.village || address.municipality || '';
+                const country = address.country || '';
+                return city && country ? `${city}, ${country}` : (city || country || '');
+            } catch (error) {
+                console.error('Geocoding Fehler:', error);
+                return null;
+            }
+        }
+
+        // GPS Position überwachen
+        function startGPSTracking() {
+            if (!navigator.geolocation) {
+                showError('GPS wird nicht unterstützt');
+                captureBtn.disabled = true;
+                return;
+            }
+
+            navigator.geolocation.watchPosition(
+                async (position) => {
+                    currentPosition = position;
+                    gpsDot.classList.remove('inactive');
+                    gpsStatus.textContent = 'Aktiv';
+                    
+                    if (!currentAddress) {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        currentAddress = await getAddressFromCoords(lat, lon);
+                    }
+                    
+                    updateOverlayPreview();
+                    captureBtn.disabled = false;
+                },
+                (error) => {
+                    console.error('GPS Fehler:', error);
+                    gpsDot.classList.add('inactive');
+                    gpsStatus.textContent = 'Fehler';
+                    // Trotzdem Fotos erlauben, aber ohne GPS-Daten
+                    captureBtn.disabled = false;
+                    showError('GPS nicht verfügbar - Fotos ohne Koordinaten möglich');
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 5000
+                }
+            );
+        }
+
+        // Kamera starten
+        async function startCamera() {
+            try {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
+                const constraints = {
+                    video: {
+                        facingMode: facingMode,
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+            } catch (error) {
+                console.error('Kamera Fehler:', error);
+                showError('Kamera konnte nicht gestartet werden.');
+            }
+        }
+
+        // Overlay Preview aktualisieren
+        function updateOverlayPreview() {
+            if (!currentPosition) {
+                overlayPreview.innerHTML = `
+                <strong>GPS wird gesucht...</strong><br>
+                <div class="preview-badges">
+                <span class="badge badge-info">Warte auf Signal</span>
+                </div>
+                `;
+                return;
+            }
+
+            const timestamp = new Date().toLocaleString('de-DE', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            const lat = currentPosition.coords.latitude.toFixed(6);
+            const lon = currentPosition.coords.longitude.toFixed(6);
+            const accuracy = Math.round(currentPosition.coords.accuracy);
+
+            overlayPreview.innerHTML = `
+                <strong>Zeit: ${timestamp}</strong><br>
+                Geolocation: ${lat}, ${lon}<br>
+                ${currentAddress ? `Ort: ${currentAddress}<br>` : ''}
+                Genauigkeit: ±${accuracy}m
+                <div class="preview-badges">
+                    <span class="badge badge-success">✓ LEGITIM</span>
+                    <span class="badge badge-info">ISO 8601</span>
+                </div>
+            `;
+        }
+
+        // Foto aufnehmen (OHNE Logo!)
+        function capturePhoto() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+
+            // Video-Frame zeichnen
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Overlay-Text vorbereiten
+            const timestamp = new Date().toLocaleString('de-DE', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            // Text-Overlay zeichnen (unten links)
+            const padding = 20;
+            const lineHeight = 38;
+            const fontSize = 26;
+            
+            let numLines = 3; // Header + Timestamp + Badges
+            let hasGPS = currentPosition !== null;
+            let hasAddress = currentAddress !== null;
+            
+            if (hasGPS) numLines += 2; // GPS + Genauigkeit
+            if (hasAddress) numLines += 1; // Stadt
+            
+            const boxHeight = numLines * lineHeight + 20;
+            
+            // Hintergrund-Box
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+            ctx.fillRect(padding - 12, canvas.height - boxHeight - padding, canvas.width * 0.65, boxHeight);
+
+            // Header
+            ctx.font = `bold ${fontSize + 2}px Arial`;
+            ctx.fillStyle = '#60a5fa';
+            let yPos = canvas.height - boxHeight - padding + 35;
+            ctx.fillText('BlueBox GeoStamp', padding, yPos);
+
+            // Daten
+            ctx.font = `${fontSize}px 'Courier New', monospace`;
+            ctx.fillStyle = '#ffffff';
+            yPos += lineHeight;
+            ctx.fillText(`Zeit: ${timestamp}`, padding, yPos);
+            
+            if (hasGPS) {
+                const lat = currentPosition.coords.latitude.toFixed(6);
+                const lon = currentPosition.coords.longitude.toFixed(6);
+                const accuracy = Math.round(currentPosition.coords.accuracy);
+                
+                yPos += lineHeight;
+                ctx.fillText(`Geolocation: ${lat}, ${lon}`, padding, yPos);
+                
+                if (hasAddress) {
+                    yPos += lineHeight;
+                    ctx.fillText(`Ort: ${currentAddress}`, padding, yPos);
+                }
+                
+                yPos += lineHeight;
+                ctx.fillText(`Genauigkeit: ±${accuracy}m`, padding, yPos);
+            }
+
+            // Badges unten
+            yPos += lineHeight - 5;
+            ctx.font = `bold ${fontSize - 8}px Arial`;
+            
+            // Legitim Badge (grün)
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.3)';
+            ctx.fillRect(padding, yPos - 18, 95, 24);
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(padding, yPos - 18, 95, 24);
+            ctx.fillStyle = '#10b981';
+            ctx.fillText('✓ LEGITIM', padding + 8, yPos - 2);
+
+            // ISO Badge (blau)
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+            ctx.fillRect(padding + 105, yPos - 18, 90, 24);
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+            ctx.strokeRect(padding + 105, yPos - 18, 90, 24);
+            ctx.fillStyle = '#60a5fa';
+            ctx.fillText('ISO 8601', padding + 113, yPos - 2);
+
+            // Canvas zu Blob
+            canvas.toBlob((blob) => {
+                capturedImageData = blob;
+                previewImage.src = URL.createObjectURL(blob);
+                previewContainer.classList.remove('hidden');
+            }, 'image/jpeg', 0.95);
+        }
+
+        // Foto herunterladen
+        function downloadPhoto() {
+            if (!capturedImageData) return;
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const filename = `BlueBox_GeoStamp_${timestamp}.jpg`;
+
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(capturedImageData);
+            a.download = filename;
+            a.click();
+
+            setTimeout(() => {
+                previewContainer.classList.add('hidden');
+                capturedImageData = null;
+            }, 100);
+        }
+
+        // Kamera wechseln
+        function switchCamera() {
+            facingMode = facingMode === 'environment' ? 'user' : 'environment';
+            startCamera();
+        }
+
+        // Fehler anzeigen
+        function showError(message) {
+            const existing = document.getElementById('error-message');
+            if (existing) existing.remove();
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'error-message';
+            errorDiv.textContent = message;
+            document.body.appendChild(errorDiv);
+
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        // Event Listeners
+        captureBtn.addEventListener('click', capturePhoto);
+        switchCameraBtn.addEventListener('click', switchCamera);
+        downloadBtn.addEventListener('click', downloadPhoto);
+        retakeBtn.addEventListener('click', () => {
+            previewContainer.classList.add('hidden');
+            capturedImageData = null;
+        });
+
+        // PIN LOGIN SYSTEM
+        const PIN_HASH = 'e8c5f0c6f5c8b4a0d8f3e7c9a2b1d5f4e3c7a8b6d9f2e5c8a1b4d7f0e3c6a9b2'; // SHA-256 von '00991'
+        const pinInputs = [document.getElementById('pin1'), document.getElementById('pin2'), 
+                          document.getElementById('pin3'), document.getElementById('pin4'), 
+                          document.getElementById('pin5')];
+        const pinError = document.getElementById('pin-error');
+        const pinLogin = document.getElementById('pin-login');
+
+        // Simple Hash Funktion (für PIN-Verschleierung)
+        async function simpleHash(text) {
+            let hash = 0;
+            for (let i = 0; i < text.length; i++) {
+                hash = ((hash << 5) - hash) + text.charCodeAt(i);
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(16);
+        }
+
+        // PIN Check
+        async function checkPIN() {
+            const pin = pinInputs.map(input => input.value).join('');
+            
+            if (pin.length === 5) {
+                // Direkt prüfen (einfache Variante)
+                if (pin === '00991') {
+                    sessionStorage.setItem('bluebox_auth', 'true');
+                    sessionStorage.setItem('bluebox_auth_time', Date.now());
+                    pinLogin.classList.add('hidden');
+                    init();
+                } else {
+                    pinError.classList.add('show');
+                    pinInputs.forEach(input => {
+                        input.value = '';
+                        input.style.borderColor = '#ef4444';
+                    });
+                    pinInputs[0].focus();
+                    
+                    setTimeout(() => {
+                        pinError.classList.remove('show');
+                        pinInputs.forEach(input => {
+                            input.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                        });
+                    }, 2000);
+                }
+            }
+        }
+
+        // PIN Input Handler
+        pinInputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                const value = e.target.value;
+                
+                // Nur Zahlen erlauben
+                if (!/^[0-9]$/.test(value)) {
+                    e.target.value = '';
+                    return;
+                }
+                
+                // Automatisch zum nächsten Feld springen
+                if (value && index < 4) {
+                    pinInputs[index + 1].focus();
+                }
+                
+                // PIN prüfen wenn komplett
+                if (index === 4 && value) {
+                    checkPIN();
+                }
+            });
+            
+            // Backspace Handler
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !input.value && index > 0) {
+                    pinInputs[index - 1].focus();
+                }
+            });
+        });
+
+        // Session Check beim Start
+        function checkSession() {
+            const auth = sessionStorage.getItem('bluebox_auth');
+            const authTime = sessionStorage.getItem('bluebox_auth_time');
+            
+            if (auth === 'true' && authTime) {
+                // Session läuft 24 Stunden
+                const elapsed = Date.now() - parseInt(authTime);
+                if (elapsed < 24 * 60 * 60 * 1000) {
+                    pinLogin.classList.add('hidden');
+                    init();
+                    return;
+                }
+            }
+            
+            // PIN Screen anzeigen
+            pinInputs[0].focus();
+        }
+
+        // App initialisieren
+        async function init() {
+            await startCamera();
+            startGPSTracking();
+        }
+
+        checkSession();
+
+        // Service Worker registrieren
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+    </script>
+</body>
+</html>

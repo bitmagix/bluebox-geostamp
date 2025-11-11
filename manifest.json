@@ -1,0 +1,17 @@
+{
+  "name": "BlueBox GeoStamp Professional",
+  "short_name": "BlueBox",
+  "description": "Professionelle Geo-Timestamp Dokumentation",
+  "start_url": "/",
+  "display": "fullscreen",
+  "background_color": "#0f172a",
+  "theme_color": "#1e40af",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
