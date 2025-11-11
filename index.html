@@ -462,14 +462,10 @@
                 // Stadt
                 const city = address.city || address.town || address.village || address.municipality || '';
                 
-                // Land
-                const country = address.country || '';
-                
-                // Formatierung
+                // Formatierung (OHNE Land)
                 const parts = [];
                 if (street) parts.push(street);
                 if (city) parts.push(city);
-                if (country) parts.push(country);
                 
                 return parts.join(', ') || null;
             } catch (error) {
